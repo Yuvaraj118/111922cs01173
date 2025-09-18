@@ -67,10 +67,8 @@ function UrlShortener() {
 
   return (
     <div className="container mt-5">
-      {/* Header */}
       <h1 className="text-center mb-4 fw-bold">🔗 URL Shortener</h1>
 
-      {/* Alert */}
       {msg && (
         <div
           className={`alert alert-${msg.type} alert-dismissible fade show`}
@@ -80,7 +78,6 @@ function UrlShortener() {
         </div>
       )}
 
-      {/* Form */}
       <form
         onSubmit={handleSubmit}
         className="card shadow-sm mb-4 p-3 bg-light"
@@ -100,7 +97,6 @@ function UrlShortener() {
         </div>
       </form>
 
-      {/* Stats + Table */}
       <div className="card shadow">
         <div className="card-header d-flex justify-content-between align-items-center">
           <h5 className="mb-0">Your Shortened Links</h5>

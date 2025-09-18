@@ -4,23 +4,51 @@ function AdminPanel() {
   const [urls, setUrls] = useState([]);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("shortUrls");
-    if (saved) setUrls(JSON.parse(saved));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const normalized = Array.isArray(parsed)
+          ? parsed.map((u) => {
+              const derivedShort = u.short || (u.shortCode ? `${window.location.origin}/${u.shortCode}` : "");
+              return {
+                id: u.id || u.shortCode || u.short || u.original,
+                original: u.original || "",
+                short: derivedShort,
+                shortCode: u.shortCode || (typeof u.short === "string" ? u.short.replace(/^.*\//, "") : undefined),
+                createdAt: u.createdAt || u.created_at || null,
+                clicks: typeof u.clicks === "number" ? u.clicks : 0,
+              };
+            })
+          : [];
+        setUrls(normalized);
+      } catch (e) {
+        console.error("Failed to parse shortUrls from storage", e);
+        setUrls([]);
+      }
+    }
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("shortUrls", JSON.stringify(urls));
-  }, [urls]);
+  }, [urls, hydrated]);
 
-  const deleteUrl = (id) => {
-    setUrls((prev) => prev.filter((u) => u.id !== id));
+  const deleteUrl = (identifier) => {
+    setUrls((prev) =>
+      prev.filter((u) => u.id !== identifier && (u.shortCode ? u.shortCode !== identifier : true))
+    );
     showToast("URL deleted!");
   };
 
-  const copyUrl = (short) => {
-    navigator.clipboard.writeText(short);
+  const copyUrl = (item) => {
+    const valueToCopy = item.short || (item.shortCode ? `${window.location.origin}/${item.shortCode}` : "");
+    if (!valueToCopy) return;
+    navigator.clipboard.writeText(valueToCopy);
     showToast("Short URL copied!");
   };
 
@@ -29,15 +57,17 @@ function AdminPanel() {
     setTimeout(() => setToast(""), 2000);
   };
 
-  const filteredUrls = urls.filter(
-    (u) =>
-      u.original.toLowerCase().includes(search.toLowerCase()) ||
-      u.short.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUrls = urls.filter((u) => {
+    const q = search.toLowerCase();
+    const shortDisplay = u.short || (u.shortCode ? `${window.location.origin}/${u.shortCode}` : "");
+    return (
+      (u.original || "").toLowerCase().includes(q) ||
+      (shortDisplay || "").toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="container my-5">
-      {/* Header */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
         <h1 className="mb-3 mb-md-0 text-primary">Admin Panel</h1>
         <input
@@ -49,7 +79,6 @@ function AdminPanel() {
         />
       </div>
 
-      {/* Stats */}
       <div className="row g-3 mb-4">
         <div className="col-md-3 col-6">
           <div className="card shadow-sm text-center">
@@ -71,7 +100,6 @@ function AdminPanel() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="card shadow-sm">
         <div className="card-body p-0">
           {filteredUrls.length === 0 ? (
@@ -101,19 +129,25 @@ function AdminPanel() {
                           {url.original}
                         </a>
                       </td>
-                      <td>{url.short}</td>
-                      <td>{new Date(url.createdAt).toLocaleString()}</td>
-                      <td>{url.clicks}</td>
+                      <td>{url.short || (url.shortCode ? `${window.location.origin}/${url.shortCode}` : "-")}</td>
+                      <td>{
+                        url.createdAt
+                          ? (isNaN(Date.parse(url.createdAt))
+                              ? String(url.createdAt)
+                              : new Date(url.createdAt).toLocaleString())
+                          : "-"
+                      }</td>
+                      <td>{typeof url.clicks === "number" ? url.clicks : 0}</td>
                       <td className="text-center">
                         <button
                           className="btn btn-sm btn-success me-2"
-                          onClick={() => copyUrl(url.short)}
+                          onClick={() => copyUrl(url)}
                         >
                           Copy
                         </button>
                         <button
                           className="btn btn-sm btn-danger"
-                          onClick={() => deleteUrl(url.id)}
+                          onClick={() => deleteUrl(url.id || url.shortCode)}
                         >
                           Delete
                         </button>
@@ -127,15 +161,12 @@ function AdminPanel() {
         </div>
       </div>
 
-      {/* Toast Notification */}
       {toast && (
         <div
-          className="toast show position-fixed bottom-0 end-0 m-4"
-          role="alert"
+          className="position-fixed bottom-0 end-0 m-4"
+          style={{ zIndex: 1050 }}
         >
-          <div className="toast-body bg-dark text-white rounded shadow">
-            {toast}
-          </div>
+          <div className="alert alert-dark shadow mb-0">{toast}</div>
         </div>
       )}
     </div>

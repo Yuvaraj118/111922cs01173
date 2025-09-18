@@ -5,7 +5,7 @@ function RedirectHandler() {
   const { shortCode } = useParams();
   const navigate = useNavigate();
   const [msg, setMsg] = useState("Checking link...");
-  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [status, setStatus] = useState("loading");
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -17,7 +17,18 @@ function RedirectHandler() {
     }
 
     const urls = JSON.parse(saved);
-    const found = urls.find((u) => u.shortCode === shortCode);
+    const found = urls.find((u) => {
+      if (u.shortCode) return u.shortCode === shortCode;
+      if (u.short) {
+        try {
+          const code = String(u.short).split("/").pop();
+          return code === shortCode;
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
+    });
 
     if (!found) {
       setMsg("Short URL not found");
@@ -28,7 +39,20 @@ function RedirectHandler() {
     setMsg("Redirecting...");
     setStatus("success");
 
-    // Fake progress animation
+    try {
+      const updated = urls.map((u) => {
+        const matches = u === found || (u.shortCode && u.shortCode === found.shortCode) || (u.short && u.short === found.short);
+        if (!matches) return u;
+        return {
+          ...u,
+          clicks: typeof u.clicks === "number" ? u.clicks + 1 : 1,
+        };
+      });
+      localStorage.setItem("shortUrls", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to persist click increment", e);
+    }
+
     let p = 0;
     const timer = setInterval(() => {
       p += 20;
@@ -51,7 +75,7 @@ function RedirectHandler() {
           {msg}
         </h2>
 
-        {/* Progress bar */}
+        
         {status !== "error" && (
           <div className="w-full bg-gray-200 rounded-full h-3 mb-6 overflow-hidden">
             <div
@@ -61,7 +85,7 @@ function RedirectHandler() {
           </div>
         )}
 
-        {/* Buttons */}
+  
         <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate("/")}
